@@ -89,7 +89,7 @@ func (w *WaveFile) Close() error {
 /***** Private Methods *****/
 
 /**
- * Writes the header chunks to the file.
+ * Writes the header chunks to the buffer.
  * @return {error} Non-nil if an error occured.
  */
 func (w *WaveFile) writeHeader(buffer *bytes.Buffer) error {
@@ -100,23 +100,28 @@ func (w *WaveFile) writeHeader(buffer *bytes.Buffer) error {
 		return err
 	}
 
+	err = w.writeFmtChunk(buffer)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 /**
- * Writes the container (RIFF) chunk to the file.
+ * Writes the container (RIFF) chunk to the buffer.
  * @return {error} Non-nil if an error occured.
  */
 func (w *WaveFile) writeRIFFChunk(buffer *bytes.Buffer) error {
 	var err error
 
-	// ChunkID (RIFF)
+	// Chunk ID (RIFF)
 	_, err = buffer.WriteString("RIFF")
 	if err != nil {
 		return err
 	}
 
-	// ChunkSize (Unknown at this time)
+	// Chunk size (Unknown at this time)
 	err = binary.Write(buffer, binary.LittleEndian, uint32(0))
 	if err != nil {
 		return err
@@ -131,6 +136,62 @@ func (w *WaveFile) writeRIFFChunk(buffer *bytes.Buffer) error {
 	return nil
 }
 
+/**
+ * Writes the mandatory fmt chunk to the buffer.
+ */
 func (w *WaveFile) writeFmtChunk(buffer *bytes.Buffer) error {
+	var err error
+
+	// Chunk ID (fmt )
+	_, err = buffer.WriteString("fmt ")
+	if err != nil {
+		return err
+	}
+
+	// Chunk size (always 16)
+	err = binary.Write(buffer, binary.LittleEndian, uint32(16))
+	if err != nil {
+		return err
+	}
+
+	// Audio format (1 = uncompressed PCM)
+	err = binary.Write(buffer, binary.LittleEndian, uint16(1))
+	if err != nil {
+		return err
+	}
+
+	// Number of channels
+	err = binary.Write(buffer, binary.LittleEndian, w.description.NumChannels)
+	if err != nil {
+		return err
+	}
+
+	// Sample rate
+	err = binary.Write(buffer, binary.LittleEndian, w.description.SampleRate)
+	if err != nil {
+		return err
+	}
+
+	blockAlign := w.description.NumChannels * w.description.BitsPerSample / 8
+	byteRate := w.description.SampleRate * uint32(blockAlign)
+
+	// Byte rate
+	err = binary.Write(buffer, binary.LittleEndian, byteRate)
+	if err != nil {
+		return err
+	}
+
+	// Block align
+	err = binary.Write(buffer, binary.LittleEndian, blockAlign)
+	if err != nil {
+		return err
+	}
+
+	// Bits per sample
+	err = binary.Write(buffer, binary.LittleEndian, w.description.BitsPerSample)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
