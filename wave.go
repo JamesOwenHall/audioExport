@@ -10,8 +10,9 @@ import (
  * The WaveFile struct is used to create uncompressed .wav files.
  */
 type WaveFile struct {
-	file        *os.File
-	description WaveDescription
+	file         *os.File
+	description  WaveDescription
+	bytesWritten uint32 // This is the total number of bytes in the data chunk.
 }
 
 /**
@@ -58,8 +59,9 @@ func (w *WaveFile) Open(fileName string, description WaveDescription) error {
  * @return {error} Non-nil if an error occured.
  */
 func (w *WaveFile) WriteBytes(bytes []byte) error {
-	// TODO: Write bytes to file
-	return nil
+	n, err := w.file.Write(bytes)
+	w.bytesWritten += uint32(n)
+	return err
 }
 
 /**
@@ -82,7 +84,18 @@ func (w *WaveFile) WriteChannels(channels ...[]byte) error {
  * @return {error} Non-nil if an error occured.
  */
 func (w *WaveFile) Close() error {
-	// TODO: Adjust block sizes
+	var err error
+
+	err = w.closeDataChunk()
+	if err != nil {
+		return err
+	}
+
+	err = w.closeRIFFChunk()
+	if err != nil {
+		return err
+	}
+
 	return w.file.Close()
 }
 
@@ -201,6 +214,9 @@ func (w *WaveFile) writeFmtChunk(buffer *bytes.Buffer) error {
 	return nil
 }
 
+/**
+ * Writes the start of the data chunk to the buffer.
+ */
 func (w *WaveFile) startDataChunk(buffer *bytes.Buffer) error {
 	var err error
 
@@ -212,6 +228,48 @@ func (w *WaveFile) startDataChunk(buffer *bytes.Buffer) error {
 
 	// Chunk size (unknown at this time)
 	err = binary.Write(buffer, binary.LittleEndian, uint32(0))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+/**
+ * Writes the size of the data chunk to its header.
+ */
+func (w *WaveFile) closeDataChunk() error {
+	var err error
+
+	buffer := new(bytes.Buffer)
+	err = binary.Write(buffer, binary.LittleEndian, w.bytesWritten)
+	if err != nil {
+		return err
+	}
+
+	// The offset of the size of the data chunk is always 40 bytes.
+	_, err = w.file.WriteAt(buffer.Bytes(), 40)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+/**
+ * Writes the size of the RIFF chunk to its header.
+ */
+func (w *WaveFile) closeRIFFChunk() error {
+	var err error
+
+	buffer := new(bytes.Buffer)
+	err = binary.Write(buffer, binary.LittleEndian, w.bytesWritten+36)
+	if err != nil {
+		return err
+	}
+
+	// The offset of the size of the RIFF chunk is always 4 bytes.
+	_, err = w.file.WriteAt(buffer.Bytes(), 4)
 	if err != nil {
 		return err
 	}
