@@ -105,6 +105,11 @@ func (w *WaveFile) writeHeader(buffer *bytes.Buffer) error {
 		return err
 	}
 
+	err = w.startDataChunk(buffer)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -189,6 +194,24 @@ func (w *WaveFile) writeFmtChunk(buffer *bytes.Buffer) error {
 
 	// Bits per sample
 	err = binary.Write(buffer, binary.LittleEndian, w.description.BitsPerSample)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *WaveFile) startDataChunk(buffer *bytes.Buffer) error {
+	var err error
+
+	// Chunk ID (data)
+	_, err = buffer.WriteString("data")
+	if err != nil {
+		return err
+	}
+
+	// Chunk size (unknown at this time)
+	err = binary.Write(buffer, binary.LittleEndian, uint32(0))
 	if err != nil {
 		return err
 	}
