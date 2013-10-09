@@ -1,3 +1,4 @@
-#Overview
+AudioExport
+===========
 
-AudioExport is a small library that facilitates the creation of uncompressed audio files in Go.
+Export audio to uncompressed wave files in Go.
