@@ -1,8 +1,17 @@
+/**
+ * AudioExport is a package for exporting raw audio data to uncompressed .wav
+ * files.
+ *
+ * @author James Hall
+ * github.com/JamesOwenHall
+ */
+
 package audioExport
 
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"os"
 )
 
@@ -11,18 +20,8 @@ import (
  */
 type WaveFile struct {
 	file         *os.File
-	description  WaveDescription
-	bytesWritten uint32 // This is the total number of bytes in the data chunk.
-}
-
-/**
- * This struct describes the format of the audio data.  See the .wav format
- * specification for a complete definition of these members.
- */
-type WaveDescription struct {
-	NumChannels   int16
-	SampleRate    uint32
-	BitsPerSample int16
+	description  AudioDescription
+	bytesWritten uint32
 }
 
 /**
@@ -31,7 +30,7 @@ type WaveDescription struct {
  * @param {string} fileName The name of the file to be created.
  * @return {error} Non-nil if an error occured.
  */
-func (w *WaveFile) Open(fileName string, description WaveDescription) error {
+func (w *WaveFile) Open(fileName string, description AudioDescription) error {
 	var err error
 
 	w.file, err = os.Create(fileName)
@@ -67,15 +66,43 @@ func (w *WaveFile) WriteBytes(bytes []byte) error {
 /**
  * Muxes and writes the channels to the file.  This can be called several
  * times, so long as the file doesn't reach its 4GB limit.
- * @param {[]byte} channels The audio data in each channel.  If the file
- *                          description calls for more channels than what is
- *                          passed, the other channels will be filled with
- *                          zeroes.
+ * @param {[]float64} channels The audio data in each channel.
  * @return {error} Non-nil if an error occured.
  */
-func (w *WaveFile) WriteChannels(channels ...[]byte) error {
-	// TODO: Mux and write the bytes to the file
-	return nil
+func (w *WaveFile) WriteChannels(channels ...[]float64) error {
+	var err error
+
+	// If too many channels are given, return an error.
+	if len(channels) != int(w.description.NumChannels) {
+		return errors.New("The number of audio channels doesn't equal the number of streams supplied.")
+	}
+
+	// Make sure the data streams are all of the same length
+	var chanLength int = -1
+	for i := range channels {
+		if chanLength == -1 {
+			chanLength = len(channels[i])
+			continue
+		}
+
+		if len(channels[i]) != chanLength {
+			return errors.New("The channels have different amounts of audio data.")
+		}
+	}
+
+	buffer := new(bytes.Buffer)
+
+	// Write to the buffer
+	for i := 0; i < chanLength; i++ {
+		for j := range channels {
+			err = w.writeFloatToBuffer(channels[j][i], buffer)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return w.WriteBytes(buffer.Bytes())
 }
 
 /**
@@ -275,4 +302,46 @@ func (w *WaveFile) closeRIFFChunk() error {
 	}
 
 	return nil
+}
+
+/**
+ * Determines which method to call in order to write the data to the buffer at
+ * the right bit depth.
+ */
+func (w *WaveFile) writeFloatToBuffer(data float64, buffer *bytes.Buffer) error {
+	switch w.description.BitsPerSample {
+	case BPS8:
+		return w.write8BitToBuffer(data, buffer)
+	case BPS16:
+		return w.write16BitToBuffer(data, buffer)
+	case BPS32:
+		return w.write32BitToBuffer(data, buffer)
+	default:
+		return errors.New("Invalid bit depth.")
+	}
+	return nil
+}
+
+/**
+ * Writes an 8-bit unsigned integer to the buffer.
+ */
+func (w *WaveFile) write8BitToBuffer(data float64, buffer *bytes.Buffer) error {
+	res := uint8(data*127 + 127)
+	return binary.Write(buffer, binary.LittleEndian, res)
+}
+
+/**
+ * Writes a 16-bit integer to the buffer.
+ */
+func (w *WaveFile) write16BitToBuffer(data float64, buffer *bytes.Buffer) error {
+	res := int16(data * 32767)
+	return binary.Write(buffer, binary.LittleEndian, res)
+}
+
+/**
+ * Writes a 32-bit integer to the buffer.
+ */
+func (w *WaveFile) write32BitToBuffer(data float64, buffer *bytes.Buffer) error {
+	res := int32(data * 2147483647)
+	return binary.Write(buffer, binary.LittleEndian, res)
 }
