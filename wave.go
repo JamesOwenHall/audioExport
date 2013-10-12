@@ -126,6 +126,10 @@ func (w *WaveFile) Close() error {
 	return w.file.Close()
 }
 
+func (w *WaveFile) AudioDescription() AudioDescription {
+	return w.description
+}
+
 /***** Private Methods *****/
 
 /**
