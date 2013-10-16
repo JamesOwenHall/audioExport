@@ -1,11 +1,5 @@
-/**
- * AudioExport is a package for exporting raw audio data to uncompressed .wav
- * files.
- *
- * @author James Hall
- * github.com/JamesOwenHall
- */
-
+// Package audioExport provides structures for creating uncompressed audio
+// files without linking to external C libraries.
 package audioExport
 
 import (
@@ -15,21 +9,15 @@ import (
 	"os"
 )
 
-/**
- * The WaveFile struct is used to create uncompressed .wav files.
- */
+// WaveFile is used to create uncompressed .wav files.
 type WaveFile struct {
 	file         *os.File
 	description  AudioDescription
 	bytesWritten uint32
 }
 
-/**
- * Creates the file and writes the necessary headers.  The corresponding
- * "Close" method should always be called when you're done with the file.
- * @param {string} fileName The name of the file to be created.
- * @return {error} Non-nil if an error occured.
- */
+// Open creates the file and writes the necessary headers.  The corresponding
+// Close method should always be called when you're done writing data.
 func (w *WaveFile) Open(fileName string, description AudioDescription) error {
 	var err error
 
@@ -50,25 +38,22 @@ func (w *WaveFile) Open(fileName string, description AudioDescription) error {
 	return err
 }
 
-/**
- * Writes the binary waveform to the file.  This can be called several times,
- * so long as the file doesn't reach its 4GB limit.
- * @param {[]byte} bytes The waveform data to be written to the file.  For
- *                       multichannel audio, the data should already be muxed.
- * @return {error} Non-nil if an error occured.
- */
+// WriteBytes writes the binary waveform to the file.  It expects muxed data
+// in the format specified by the audio description.  In most cases,
+// WriteChannels is more suitable because it will convert and mux the data for
+// you.  WriteBytes can be called several times, so long as the file doesn't
+// reach its 4GB limit.
 func (w *WaveFile) WriteBytes(bytes []byte) error {
 	n, err := w.file.Write(bytes)
 	w.bytesWritten += uint32(n)
 	return err
 }
 
-/**
- * Muxes and writes the channels to the file.  This can be called several
- * times, so long as the file doesn't reach its 4GB limit.
- * @param {[]float64} channels The audio data in each channel.
- * @return {error} Non-nil if an error occured.
- */
+// WriteChannels muxes and writes the channels to the file.  Each channel
+// should be a float64 slice where each item in the array ranges from -1 to 1.
+// Any values beyond these bounds will be automatically clipped.  WriteChannels
+// can be called several times, so long as the file doesn't reach its 4GB
+// limit.
 func (w *WaveFile) WriteChannels(channels ...[]float64) error {
 	var err error
 
@@ -105,11 +90,8 @@ func (w *WaveFile) WriteChannels(channels ...[]float64) error {
 	return w.WriteBytes(buffer.Bytes())
 }
 
-/**
- * Closes the file.  This should always be called when you're done writing
- * data.
- * @return {error} Non-nil if an error occured.
- */
+// Close completes the headers and closes the file.  Close should always be
+// called when you're done writing data.
 func (w *WaveFile) Close() error {
 	var err error
 
@@ -126,16 +108,17 @@ func (w *WaveFile) Close() error {
 	return w.file.Close()
 }
 
+// AudioDescription acts as a getter for the AudioDescription provided to the
+// Open method.
 func (w *WaveFile) AudioDescription() AudioDescription {
 	return w.description
 }
 
-/***** Private Methods *****/
+/*****************************************************************************/
+/****************************** Private Methods ******************************/
+/*****************************************************************************/
 
-/**
- * Writes the header chunks to the buffer.
- * @return {error} Non-nil if an error occured.
- */
+// writeHeader writes the header chunks to the buffer.
 func (w *WaveFile) writeHeader(buffer *bytes.Buffer) error {
 	var err error
 
@@ -157,10 +140,7 @@ func (w *WaveFile) writeHeader(buffer *bytes.Buffer) error {
 	return nil
 }
 
-/**
- * Writes the container (RIFF) chunk to the buffer.
- * @return {error} Non-nil if an error occured.
- */
+// writeRIFFChunk writes the container (RIFF) chunk to the buffer.
 func (w *WaveFile) writeRIFFChunk(buffer *bytes.Buffer) error {
 	var err error
 
@@ -185,9 +165,7 @@ func (w *WaveFile) writeRIFFChunk(buffer *bytes.Buffer) error {
 	return nil
 }
 
-/**
- * Writes the mandatory fmt chunk to the buffer.
- */
+// writeFmtChunk writes the mandatory fmt chunk to the buffer.
 func (w *WaveFile) writeFmtChunk(buffer *bytes.Buffer) error {
 	var err error
 
@@ -245,9 +223,7 @@ func (w *WaveFile) writeFmtChunk(buffer *bytes.Buffer) error {
 	return nil
 }
 
-/**
- * Writes the start of the data chunk to the buffer.
- */
+// startDataChunk writes the start of the data chunk to the buffer.
 func (w *WaveFile) startDataChunk(buffer *bytes.Buffer) error {
 	var err error
 
@@ -266,9 +242,7 @@ func (w *WaveFile) startDataChunk(buffer *bytes.Buffer) error {
 	return nil
 }
 
-/**
- * Writes the size of the data chunk to its header.
- */
+// closeDataChunk writes the size of the data chunk to its header.
 func (w *WaveFile) closeDataChunk() error {
 	var err error
 
@@ -287,9 +261,7 @@ func (w *WaveFile) closeDataChunk() error {
 	return nil
 }
 
-/**
- * Writes the size of the RIFF chunk to its header.
- */
+// closeRIFFChunk writes the size of the RIFF chunk to its header.
 func (w *WaveFile) closeRIFFChunk() error {
 	var err error
 
@@ -308,10 +280,8 @@ func (w *WaveFile) closeRIFFChunk() error {
 	return nil
 }
 
-/**
- * Determines which method to call in order to write the data to the buffer at
- * the right bit depth.
- */
+// writeFloatToBuffer determines which method to call in order to write the
+// data to the buffer at the right bit depth.
 func (w *WaveFile) writeFloatToBuffer(data float64, buffer *bytes.Buffer) error {
 	switch w.description.BitsPerSample {
 	case BPS8:
@@ -326,25 +296,19 @@ func (w *WaveFile) writeFloatToBuffer(data float64, buffer *bytes.Buffer) error 
 	return nil
 }
 
-/**
- * Writes an 8-bit unsigned integer to the buffer.
- */
+// write8BitToBuffer writes an 8-bit unsigned integer to the buffer.
 func (w *WaveFile) write8BitToBuffer(data float64, buffer *bytes.Buffer) error {
 	res := uint8(data*127 + 127)
 	return binary.Write(buffer, binary.LittleEndian, res)
 }
 
-/**
- * Writes a 16-bit integer to the buffer.
- */
+// write16BitToBuffer writes a 16-bit integer to the buffer.
 func (w *WaveFile) write16BitToBuffer(data float64, buffer *bytes.Buffer) error {
 	res := int16(data * 32767)
 	return binary.Write(buffer, binary.LittleEndian, res)
 }
 
-/**
- * Writes a 32-bit integer to the buffer.
- */
+// write32BitToBuffer writes a 32-bit integer to the buffer.
 func (w *WaveFile) write32BitToBuffer(data float64, buffer *bytes.Buffer) error {
 	res := int32(data * 2147483647)
 	return binary.Write(buffer, binary.LittleEndian, res)
