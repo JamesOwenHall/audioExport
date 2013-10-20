@@ -1,5 +1,3 @@
-// Package audioExport provides structures for creating uncompressed audio
-// files without linking to external C libraries.
 package audioExport
 
 import (

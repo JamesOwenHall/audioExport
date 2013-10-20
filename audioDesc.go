@@ -1,3 +1,5 @@
+// Package audioExport provides structures for creating uncompressed audio
+// files without linking to external C libraries.
 package audioExport
 
 // AudioDescription describes the format of the audio data.
