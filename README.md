@@ -1,16 +1,16 @@
 AudioExport
 ===========
 
-Export audio to uncompressed .wav files in Go.
+Export uncompressed audio files in Go.
 
 ##Why Use It
 
-The Go standard library doesn't have any audio capabilities.  With AudioExport, you gain the ability to create .wav files without the need to link to external C libraries.  Your application will still compile to a single binary in typical Go style.
+The Go standard library doesn't have any audio capabilities.  With AudioExport, you gain the ability to create audio files without the need to link to external C libraries.  Your application will still compile to a single binary in typical Go style.
 
 
 ##How To Use It
 
-First you need to create an instance of AudioDescription &amp; WaveFile:
+First you need to create an instance of AudioDescription &amp; your choice of audio file.  In this case, we'll use a WaveFile:
 
     myFile := audioExport.WaveFile{}
     desc := audioExport.AudioDescription{
@@ -30,3 +30,23 @@ Call the WriteChannels method as many times as you need to write the sound data 
 Close the file and you're done.
 
     err = myFile.Close()
+
+##Supported Formats
+
+Currently, the only supported file formats are WAV and AIFF.
+
+####File Types
+- WAV
+- AIFF
+
+####Bits per Sample
+- 8
+- 16
+- 32
+
+####Sample Rates (Hz)
+- 32,000
+- 44,100
+- 48,000
+- 96,000
+- 192,000
