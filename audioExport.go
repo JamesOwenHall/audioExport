@@ -2,6 +2,12 @@
 // files without linking to external C libraries.
 package audioExport
 
+type AudioFile interface {
+	Open(fileName string, description AudioDescription) error
+	WriteChannels(channels ...[]float64) error
+	Close() error
+}
+
 // AudioDescription describes the format of the audio data.
 type AudioDescription struct {
 	NumChannels   int16
